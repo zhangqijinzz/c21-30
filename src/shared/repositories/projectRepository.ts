@@ -66,7 +66,15 @@ function parseScenario(value: unknown): ScenarioSnapshot | undefined {
     !Array.isArray(value.criticalPath)
   )
     return undefined;
-  const { id, name, createdAt, concurrencyLimit, completionMs } = value;
+  const {
+    id,
+    name,
+    createdAt,
+    concurrencyLimit,
+    completionMs,
+    budgetVersion,
+    simulationMode,
+  } = value;
   if (
     typeof id !== "string" ||
     typeof name !== "string" ||
@@ -89,6 +97,13 @@ function parseScenario(value: unknown): ScenarioSnapshot | undefined {
     criticalPath: value.criticalPath.filter(
       (id): id is string => typeof id === "string",
     ),
+    // 旧快照不带口径标记，一律视为 v1；锁定的 completionMs 不做改写。
+    ...(budgetVersion === 1 || budgetVersion === 2 ? { budgetVersion } : {}),
+    ...(simulationMode === "low" ||
+    simulationMode === "expected" ||
+    simulationMode === "high"
+      ? { simulationMode }
+      : {}),
   };
 }
 

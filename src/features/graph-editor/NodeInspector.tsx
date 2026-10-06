@@ -116,7 +116,8 @@ export default function NodeInspector({
               ))}
           </select>
           <small className="field-note">
-            按最终失败概率加权计入降级请求耗时。
+            降级路径只在全部尝试最终失败时触发，按最终失败概率折算，与主路径分行展示；
+            目标自身再降级时，其下游耗时按两级失败概率连乘折算。
           </small>
         </label>
       </aside>

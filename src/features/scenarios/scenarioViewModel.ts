@@ -1,14 +1,71 @@
+import { simulateProject } from "../../shared/domain/simulation";
 import type {
   LatencyProject,
   RequestNode,
   ScenarioSnapshot,
+  SimulationMode,
   SimulationResult,
 } from "../../shared/domain/types";
+
+export const CURRENT_BUDGET_VERSION = 2 as const;
 
 export interface ScenarioComparison {
   deltaMs: number;
   changes: string[];
   outcome: "faster" | "slower" | "equal";
+}
+
+/**
+ * 旧快照锁定的完成预算不随后续口径调整而改变。
+ * 这里仅按当前口径重算一份用于对照，差额可以明确归因：
+ * - 参数完全相同、仅 budgetVersion 不同 → 差额来自口径调整（如下游降级折算补全）；
+ * - 重算值与锁定值一致 → 口径调整对该方案无影响。
+ */
+export interface SnapshotRecalibration {
+  lockedMs: number;
+  recomputedMs: number;
+  deltaMs: number;
+  lockedVersion: 1 | 2;
+  /** 差额是否纯粹来自口径版本（参数快照未变） */
+  caliberOnly: boolean;
+  mode: SimulationMode;
+}
+
+export function recalibrateSnapshot(
+  snapshot: ScenarioSnapshot,
+): SnapshotRecalibration {
+  const mode: SimulationMode = snapshot.simulationMode ?? "expected";
+  const project: LatencyProject = {
+    id: `recalc-${snapshot.id}`,
+    title: snapshot.name,
+    nodes: snapshot.nodes,
+    concurrencyLimit: snapshot.concurrencyLimit,
+    scenarios: [],
+    createdAt: snapshot.createdAt,
+    updatedAt: snapshot.createdAt,
+  };
+  const result = simulateProject(project, mode);
+  const lockedVersion = snapshot.budgetVersion ?? 1;
+  const recomputedMs = Math.round(result.completionMs);
+  return {
+    lockedMs: Math.round(snapshot.completionMs),
+    recomputedMs,
+    deltaMs: recomputedMs - Math.round(snapshot.completionMs),
+    lockedVersion,
+    caliberOnly: lockedVersion < CURRENT_BUDGET_VERSION,
+    mode,
+  };
+}
+
+export function describeRecalibration(
+  recalibration: SnapshotRecalibration,
+): string | undefined {
+  if (recalibration.deltaMs === 0) return undefined;
+  const sign = recalibration.deltaMs > 0 ? "+" : "-";
+  const reason = recalibration.caliberOnly
+    ? "差额来自降级下游折算口径调整（v1 → v2），非参数变化"
+    : "差额来自当前口径重算";
+  return `按 v2 口径重算 ${recalibration.recomputedMs} ms（${sign}${Math.abs(recalibration.deltaMs)} ms），${reason}`;
 }
 
 function describeNodeChanges(
@@ -97,6 +154,8 @@ export function saveScenario(
     nodes: structuredClone(project.nodes),
     completionMs: result.completionMs,
     criticalPath: [...result.criticalPath],
+    budgetVersion: CURRENT_BUDGET_VERSION,
+    simulationMode: result.mode,
   };
   return {
     ...project,

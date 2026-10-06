@@ -1698,6 +1698,149 @@ button:disabled {
   text-align: center;
   font-size: 10px;
 }
+.legend-fallback {
+  background: repeating-linear-gradient(
+    135deg,
+    #e0a85c 0,
+    #e0a85c 3px,
+    #f4e2c8 3px,
+    #f4e2c8 6px
+  );
+}
+.timeline-lane-group {
+  border-bottom: 1px solid #f0f2ee;
+}
+.timeline-lane-group:last-of-type {
+  border-bottom: 0;
+}
+.timeline-lane-group .timeline-row {
+  border-bottom: 0;
+}
+.timeline-row-fallback {
+  min-height: 34px;
+  background: #fdf9f2;
+}
+.fallback-name {
+  padding-left: 8px;
+}
+.fallback-branch-icon {
+  display: grid;
+  place-items: center;
+  width: 23px;
+  flex: 0 0 23px;
+  color: #c08a45;
+  font-size: 12px;
+}
+.fallback-name b {
+  color: #8a6a3f;
+  font-size: 8.5px;
+}
+.fallback-name small {
+  color: #b49a78;
+}
+.fallback-bar {
+  position: absolute;
+  top: 7px;
+  height: 12px;
+  min-width: 10px;
+  border: 1px dashed #d69e58;
+  border-radius: 3px;
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(224, 168, 92, 0.55) 0,
+    rgba(224, 168, 92, 0.55) 3px,
+    rgba(244, 226, 200, 0.85) 3px,
+    rgba(244, 226, 200, 0.85) 6px
+  );
+}
+.fallback-label {
+  position: absolute;
+  top: 15px;
+  left: 0;
+  color: #a98558;
+  font: 7.5px var(--mono);
+  white-space: nowrap;
+}
+.fallback-label b {
+  color: #8a622f;
+}
+.fallback-end {
+  color: #c08a45;
+  font-weight: 700;
+}
+/* 主路径条尾部的折算降级占位提示（明细在下方降级行） */
+.main-fallback-slot {
+  position: absolute;
+  top: 5px;
+  height: 14px;
+  min-width: 2px;
+  border-right: 2px dotted rgba(192, 138, 69, 0.65);
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(224, 168, 92, 0.18) 0,
+    rgba(224, 168, 92, 0.18) 4px,
+    rgba(224, 168, 92, 0.05) 4px,
+    rgba(224, 168, 92, 0.05) 8px
+  );
+}
+.timeline-row-fallback.is-chained {
+  background: #fbf4ea;
+  opacity: 0.92;
+}
+.budget-breakdown {
+  margin-top: 12px;
+  padding: 11px 14px;
+  background: #fafbf8;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.budget-breakdown-head {
+  margin-bottom: 8px;
+}
+.budget-clause {
+  display: grid;
+  grid-template-columns: 14px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 0;
+}
+.budget-clause + .budget-clause {
+  border-top: 1px dashed #e7ebe4;
+}
+.budget-clause i {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+.budget-clause b {
+  display: block;
+  color: #505f55;
+  font-size: 9px;
+}
+.budget-clause small {
+  display: block;
+  margin-top: 2px;
+  color: #98a298;
+  font-size: 8px;
+  line-height: 1.5;
+}
+.budget-clause strong {
+  color: #43583b;
+  font: 10px var(--mono);
+}
+.budget-clause-fallback i {
+  background: repeating-linear-gradient(
+    135deg,
+    #e0a85c 0,
+    #e0a85c 2px,
+    #f4e2c8 2px,
+    #f4e2c8 4px
+  );
+}
+.budget-clause-fallback strong {
+  color: #a9752f;
+}
 .model-footnote {
   margin-top: 10px;
   color: #a0a9a0;
@@ -1926,6 +2069,32 @@ button:disabled {
 .snapshot-time {
   color: #65745f;
   font: 10px var(--mono);
+}
+.caliber-badge {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 1px 5px;
+  vertical-align: middle;
+  color: #6f8a55;
+  background: #eef5e3;
+  border-radius: 4px;
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.caliber-badge.is-legacy {
+  color: #a97d3f;
+  background: #f8eeda;
+}
+.recalibration-note {
+  display: block;
+  margin-top: 3px;
+  color: #b08a52;
+  font-size: 7.5px;
+  line-height: 1.5;
+}
+.recalibration-note.is-equal {
+  color: #93a187;
 }
 .change-summary {
   display: flex;

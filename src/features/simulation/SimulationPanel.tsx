@@ -160,9 +160,51 @@ export default function SimulationPanel({
         </article>
       </div>
       <Timeline project={project} result={result} />
+      <div className="budget-breakdown">
+        <div className="budget-breakdown-head">
+          <span className="section-label">预算口径</span>
+        </div>
+        <div className="budget-clause">
+          <i className="legend-normal" />
+          <div>
+            <b>主路径（必然发生）</b>
+            <small>
+              截断后的请求耗时 × 失败重试概率 +
+              指数退避；只要走到该节点就会计入，不做概率折算。
+            </small>
+          </div>
+          <strong>
+            {durationLabel(
+              result.entries.reduce(
+                (sum, entry) => sum + entry.modeledDurationMs,
+                0,
+              ),
+            )}
+          </strong>
+        </div>
+        <div className="budget-clause budget-clause-fallback">
+          <i className="legend-fallback" />
+          <div>
+            <b>降级路径（按最终失败概率折算）</b>
+            <small>
+              仅主路径全部尝试失败后触发；折算耗时 = 目标实际耗时 ×
+              触发概率，下游降级再乘目标失败概率。
+            </small>
+          </div>
+          <strong>
+            {durationLabel(
+              result.fallbacks.reduce(
+                (sum, fallback) => sum + fallback.modeledDurationMs,
+                0,
+              ),
+            )}
+          </strong>
+        </div>
+      </div>
       <div className="model-footnote">
-        耗时 = 截断后的请求耗时 × 失败重试概率 +
-        指数退避；降级开销按最终失败概率加权。并发上限会计入资源排队。
+        时间线中主路径与降级路径分行呈现：实线为主路径必然投入，虚线降级条仅在失败链路上发生、按概率折算。
+        完成预算 = 各节点主路径 +
+        折算后降级；并发上限计入资源排队。已保存方案的完成时间按保存时口径锁定，不会被重算覆盖。
       </div>
     </section>
   );

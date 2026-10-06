@@ -12,6 +12,11 @@ import type {
   ScenarioSnapshot,
 } from "../../shared/domain/types";
 import type { ScenarioComparison } from "./scenarioViewModel";
+import {
+  CURRENT_BUDGET_VERSION,
+  describeRecalibration,
+  recalibrateSnapshot,
+} from "./scenarioViewModel";
 
 interface Props {
   project: LatencyProject;
@@ -29,6 +34,36 @@ function formatDuration(value: number): string {
   return value < 1000
     ? `${Math.round(value)} ms`
     : `${(value / 1000).toFixed(2)} s`;
+}
+
+function CaliberBadge({ snapshot }: { snapshot: ScenarioSnapshot }) {
+  const version = snapshot.budgetVersion ?? 1;
+  return (
+    <span
+      className={`caliber-badge ${version < CURRENT_BUDGET_VERSION ? "is-legacy" : ""}`}
+      title={
+        version < CURRENT_BUDGET_VERSION
+          ? "v1 旧口径：降级耗时并入主节点；锁定的完成时间不会被重算覆盖"
+          : "v2 口径：主路径与降级路径分行，降级按失败概率折算"
+      }
+    >
+      口径 v{version}
+    </span>
+  );
+}
+
+function RecalibrationNote({ snapshot }: { snapshot: ScenarioSnapshot }) {
+  const version = snapshot.budgetVersion ?? 1;
+  if (version >= CURRENT_BUDGET_VERSION) return null;
+  const note = describeRecalibration(recalibrateSnapshot(snapshot));
+  if (!note) {
+    return (
+      <small className="recalibration-note is-equal">
+        按 v2 口径重算结果一致，完成时间无需调整。
+      </small>
+    );
+  }
+  return <small className="recalibration-note">{note}</small>;
 }
 
 export default function ScenarioPanel({
@@ -164,7 +199,9 @@ export default function ScenarioPanel({
               <div className="snapshot-row" key={scenario.id}>
                 <span className="snapshot-badge">S</span>
                 <div className="snapshot-info">
-                  <strong>{scenario.name}</strong>
+                  <strong>
+                    {scenario.name} <CaliberBadge snapshot={scenario} />
+                  </strong>
                   <small>
                     {new Date(scenario.createdAt).toLocaleString("zh-CN", {
                       month: "numeric",
@@ -177,6 +214,7 @@ export default function ScenarioPanel({
                       ? `${scenario.concurrencyLimit} 路并发`
                       : "不限并发"}
                   </small>
+                  <RecalibrationNote snapshot={scenario} />
                 </div>
                 <b className="snapshot-time">
                   {formatDuration(scenario.completionMs)}
