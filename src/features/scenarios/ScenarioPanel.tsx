@@ -31,6 +31,21 @@ function formatDuration(value: number): string {
     : `${(value / 1000).toFixed(2)} s`;
 }
 
+function modelBadge(version?: number) {
+  return (version ?? 1) >= 2 ? (
+    <em className="model-badge model-badge-v2" title="主/降级路径分列、降级链逐级折算的新口径">
+      新口径
+    </em>
+  ) : (
+    <em
+      className="model-badge model-badge-v1"
+      title="保存时使用旧口径：降级单层加权且与主路径混排；完成时间按原值冻结"
+    >
+      旧口径 · 已冻结
+    </em>
+  );
+}
+
 export default function ScenarioPanel({
   project,
   onSave,
@@ -120,7 +135,9 @@ export default function ScenarioPanel({
           {baseline && comparison && (
             <div className="comparison-result">
               <article className="compare-card">
-                <span>基准完成时间</span>
+                <span>
+                  基准完成时间 {modelBadge(baseline.modelVersion)}
+                </span>
                 <strong>{formatDuration(baseline.completionMs)}</strong>
                 <small>
                   {baseline.name} · {baseline.nodes.length} 节点
@@ -147,12 +164,21 @@ export default function ScenarioPanel({
                 </small>
               </div>
               <article className="compare-card compare-card-accent">
-                <span>对照完成时间</span>
+                <span>
+                  对照完成时间 {modelBadge(comparison.modelVersion)}
+                </span>
                 <strong>{formatDuration(comparison.completionMs)}</strong>
                 <small>
                   {comparison.name} · {comparison.nodes.length} 节点
                 </small>
               </article>
+            </div>
+          )}
+          {comparisonResult && comparisonResult.methodologyNotes.length > 0 && (
+            <div className="methodology-notes">
+              {comparisonResult.methodologyNotes.map((note) => (
+                <p key={note}>{note}</p>
+              ))}
             </div>
           )}
           <div className="snapshot-list">
@@ -164,7 +190,9 @@ export default function ScenarioPanel({
               <div className="snapshot-row" key={scenario.id}>
                 <span className="snapshot-badge">S</span>
                 <div className="snapshot-info">
-                  <strong>{scenario.name}</strong>
+                  <strong>
+                    {scenario.name} {modelBadge(scenario.modelVersion)}
+                  </strong>
                   <small>
                     {new Date(scenario.createdAt).toLocaleString("zh-CN", {
                       month: "numeric",

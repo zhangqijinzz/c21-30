@@ -18,7 +18,14 @@ export interface ScenarioSnapshot {
   nodes: RequestNode[];
   completionMs: number;
   criticalPath: string[];
+  /** 快照保存时使用的预算口径版本；缺省视为 1（旧口径）。 */
+  modelVersion?: number;
+  /** 保存时所选波动情境，用于对照口径差异时重算。 */
+  simulationMode?: SimulationMode;
 }
+
+/** 预算口径版本：1 = 旧口径（仅单层、按最终失败概率加权）；2 = 主/降级路径分列且递归折算。 */
+export const BUDGET_MODEL_VERSION = 2;
 
 export interface LatencyProject {
   id: string;
@@ -38,6 +45,38 @@ export interface WorkspaceDocument {
 
 export type SimulationMode = "low" | "expected" | "high";
 
+/** 降级链上的一段条件执行：目标请求自身或其继续降级的目标。 */
+export interface FallbackSegment {
+  nodeId: string;
+  /** 进入到这一段时的累计触发概率（各上游最终失败概率连乘）。 */
+  probability: number;
+  /** 按触发概率折算后的耗时贡献。 */
+  weightedMs: number;
+  /** 折算前该段自身的期望耗时。 */
+  ownMs: number;
+  kind: "target" | "chained";
+}
+
+/**
+ * 一条降级路径：仅当 owner 节点重试全部失败（概率 terminalFailureProbability）
+ * 时才进入。整条路径都按该失败概率折算，不与主路径必然耗时混排。
+ */
+export interface FallbackBranch {
+  ownerId: string;
+  targetId: string;
+  terminalFailureProbability: number;
+  /** 折算后的路径总耗时。 */
+  weightedMs: number;
+  segments: FallbackSegment[];
+  /**
+   * 目标请求在主排布里也有下游依赖（它们无论降级与否都会执行），
+   * 因此不重复计入降级折算，仅在此点名说明口径。
+   */
+  sharedDownstreamIds: string[];
+  /** 降级成环时被截断，结果不可信。 */
+  cycleTruncated?: boolean;
+}
+
 export interface TimelineEntry {
   nodeId: string;
   startMs: number;
@@ -45,6 +84,23 @@ export interface TimelineEntry {
   modeledDurationMs: number;
   waitMs: number;
   criticalPredecessorId?: string;
+  /** 必然发生：首次请求的截断耗时。 */
+  guaranteedMs: number;
+  /** 按逐层失败概率折算：重试请求与指数退避。 */
+  retryMs: number;
+  /** 按最终失败概率折算：该节点触发的降级路径。 */
+  fallbackMs: number;
+  /** 该节点拥有（触发）的降级路径，时序上独立成行呈现。 */
+  fallbackBranches: FallbackBranch[];
+}
+
+export interface BudgetBreakdown {
+  /** 主路径必然发生的关键链耗时（含概率折算后的重试）。 */
+  guaranteedMs: number;
+  /** 关键链上按失败概率折算的降级耗时。 */
+  fallbackMs: number;
+  /** 对应关键链上的降级路径明细。 */
+  fallbackBranches: FallbackBranch[];
 }
 
 export interface SimulationResult {
@@ -53,6 +109,9 @@ export interface SimulationResult {
   criticalPath: string[];
   entries: TimelineEntry[];
   warnings: string[];
+  /** 完成预算的口径分解：必然部分 vs 失败折算部分。 */
+  budget: BudgetBreakdown;
+  modelVersion: number;
 }
 
 export interface ValidationResult {

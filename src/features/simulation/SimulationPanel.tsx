@@ -160,9 +160,67 @@ export default function SimulationPanel({
         </article>
       </div>
       <Timeline project={project} result={result} />
+      <div className="budget-breakdown-card">
+        <div className="budget-breakdown-head">
+          <span className="section-label">完成预算口径</span>
+          <span className="budget-formula">
+            {durationLabel(result.budget.guaranteedMs)} 必然发生 +{" "}
+            {durationLabel(result.budget.fallbackMs)} 失败折算 ={" "}
+            {durationLabel(result.completionMs)}
+          </span>
+        </div>
+        <div className="budget-stack">
+          <div
+            className="budget-stack-segment segment-guaranteed"
+            style={{
+              flexGrow: Math.max(result.budget.guaranteedMs, 0.0001),
+            }}
+          >
+            <span>
+              必然发生 <b>{durationLabel(result.budget.guaranteedMs)}</b>
+            </span>
+          </div>
+          {result.budget.fallbackMs > 0 && (
+            <div
+              className="budget-stack-segment segment-fallback"
+              style={{ flexGrow: Math.max(result.budget.fallbackMs, 0.0001) }}
+            >
+              <span>
+                失败折算 <b>{durationLabel(result.budget.fallbackMs)}</b>
+              </span>
+            </div>
+          )}
+        </div>
+        <ul className="budget-notes">
+          <li>
+            <i className="legend-retry" />
+            节点条第二段是重试请求与指数退避：只在前面的尝试失败时发生，已按逐层失败概率折算（不是额外的完整一次请求）。
+          </li>
+          <li>
+            <i className="legend-fallback" />
+            降级路径只在主请求重试全部失败时进入，按最终失败概率折算；时间线上独立成行，不代表每次都执行。
+          </li>
+          {result.budget.fallbackBranches.some(
+            (branch) => branch.segments.length > 1,
+          ) && (
+            <li>
+              <i className="legend-fallback legend-fallback-chained" />
+              降级目标自身再降级时，后续各段按“各级最终失败概率连乘”折算。
+            </li>
+          )}
+          {result.budget.fallbackBranches.some(
+            (branch) => branch.sharedDownstreamIds.length > 0,
+          ) && (
+            <li>
+              <i className="legend-wait" />
+              降级目标在主排布里的下游请求无论是否降级都会执行，不重复折算（见降级行右侧“主路径已计”）。
+            </li>
+          )}
+        </ul>
+      </div>
       <div className="model-footnote">
-        耗时 = 截断后的请求耗时 × 失败重试概率 +
-        指数退避；降级开销按最终失败概率加权。并发上限会计入资源排队。
+        节点条 = 首次请求（必然）+ 重试请求与退避（按逐层失败概率折算）；
+        降级路径独立成行，按触发概率折算后再计入完成预算。并发上限计入资源排队。
       </div>
     </section>
   );

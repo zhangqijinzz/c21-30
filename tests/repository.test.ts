@@ -86,4 +86,35 @@ describe("project repository recovery", () => {
     expect(loaded.document.projects[0]?.id).toBe(EXAMPLE_PROJECT.id);
     expect(loaded.recovered).toBe(true);
   });
+
+  it("defaults legacy scenarios to budget model v1 without rewriting completion", () => {
+    const storage = new MemoryStorage();
+    const node = EXAMPLE_PROJECT.nodes[0]!;
+    storage.value = {
+      version: 1,
+      activeProjectId: EXAMPLE_PROJECT.id,
+      projects: [
+        {
+          ...EXAMPLE_PROJECT,
+          scenarios: [
+            {
+              id: "s1",
+              name: "旧方案",
+              createdAt: 1,
+              concurrencyLimit: null,
+              nodes: [node],
+              completionMs: 31337,
+              criticalPath: [node.id],
+            },
+          ],
+        },
+      ],
+    };
+    return new ProjectRepository(storage).load().then((loaded) => {
+      const scenario = loaded.document.projects[0]?.scenarios[0];
+      expect(scenario?.modelVersion).toBe(1);
+      expect(scenario?.completionMs).toBe(31337);
+      expect(scenario?.simulationMode).toBeUndefined();
+    });
+  });
 });

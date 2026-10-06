@@ -74,6 +74,16 @@ function parseScenario(value: unknown): ScenarioSnapshot | undefined {
     typeof completionMs !== "number"
   )
     return undefined;
+  const modelVersion =
+    typeof value.modelVersion === "number" && value.modelVersion >= 1
+      ? Math.floor(value.modelVersion)
+      : 1;
+  const simulationMode =
+    value.simulationMode === "low" ||
+    value.simulationMode === "expected" ||
+    value.simulationMode === "high"
+      ? value.simulationMode
+      : undefined;
   return {
     id,
     name,
@@ -89,6 +99,8 @@ function parseScenario(value: unknown): ScenarioSnapshot | undefined {
     criticalPath: value.criticalPath.filter(
       (id): id is string => typeof id === "string",
     ),
+    modelVersion,
+    ...(simulationMode ? { simulationMode } : {}),
   };
 }
 

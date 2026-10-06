@@ -86,4 +86,46 @@ describe("project and scenario view models", () => {
     expect(comparison.changes.join(" ")).toContain("并发上限");
     expect(comparison.changes.join(" ")).toContain("耗时");
   });
+
+  it("stamps new snapshots with model v2 and keeps legacy completion frozen", () => {
+    const result = simulateProject(EXAMPLE_PROJECT, "expected");
+    const saved = saveScenario(
+      EXAMPLE_PROJECT,
+      result,
+      "新口径方案",
+    ).scenarios[0];
+    expect(saved?.modelVersion).toBe(2);
+    expect(saved?.simulationMode).toBe("expected");
+    expect(saved?.completionMs).toBe(result.completionMs);
+
+    // 旧快照（无 modelVersion）按 v1 处理，完成时间不被重算改动
+    const legacy = {
+      ...saved!,
+      id: "legacy",
+      name: "旧口径方案",
+      modelVersion: undefined,
+      completionMs: 4242,
+    };
+    const comparison = compareScenarios(legacy, saved!);
+    expect(comparison.baselineModelVersion).toBe(1);
+    expect(comparison.comparisonModelVersion).toBe(2);
+    expect(comparison.deltaMs).toBe(result.completionMs - 4242);
+    expect(comparison.methodologyNotes.join(" ")).toContain("口径");
+  });
+
+  it("does not flag methodology differences between two new-metric snapshots", () => {
+    const result = saveScenario(
+      EXAMPLE_PROJECT,
+      simulateProject(EXAMPLE_PROJECT),
+      "a",
+    );
+    const a = result.scenarios[0]!;
+    const b = {
+      ...a,
+      id: "b",
+      name: "b",
+      completionMs: a.completionMs + 100,
+    };
+    expect(compareScenarios(a, b).methodologyNotes).toEqual([]);
+  });
 });

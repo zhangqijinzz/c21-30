@@ -3,11 +3,14 @@ import type { LatencyProject, RequestNode, ValidationResult } from "./types";
 export interface GraphAnalysis {
   order: string[];
   cycle: string[];
+  /** 降级链上检测到的环节点（降级关系不参与依赖拓扑，单独校验）。 */
+  fallbackCycle: string[];
   validation: ValidationResult;
 }
 
 export function analyzeGraph(project: LatencyProject): GraphAnalysis {
   const nodeIds = new Set(project.nodes.map((node) => node.id));
+  const byId = new Map(project.nodes.map((node) => [node.id, node]));
   const incoming = new Map(project.nodes.map((node) => [node.id, 0]));
   const outgoing = new Map(
     project.nodes.map((node) => [node.id, [] as string[]]),
@@ -98,13 +101,59 @@ export function analyzeGraph(project: LatencyProject): GraphAnalysis {
     errors.push(
       `检测到循环依赖：${cycle.map((id) => project.nodes.find((node) => node.id === id)?.name ?? id).join(" → ")}`,
     );
+  const fallbackCycle: string[] = [];
+  if (
+    project.nodes.some(
+      (node) => node.fallbackNodeId && node.fallbackNodeId === node.id,
+    )
+  ) {
+    // 自引用已在上面逐条报错，这里不重复追链。
+  } else {
+    const fallbackColor = new Map(
+      project.nodes.map((node) => [node.id, 0]),
+    );
+    const fallbackStack: string[] = [];
+    const visitFallback = (id: string): boolean => {
+      fallbackColor.set(id, 1);
+      fallbackStack.push(id);
+      const node = byId.get(id);
+      const nextId = node?.fallbackNodeId;
+      if (nextId && nodeIds.has(nextId)) {
+        const color = fallbackColor.get(nextId) ?? 0;
+        if (color === 1) {
+          const start = fallbackStack.indexOf(nextId);
+          fallbackCycle.push(...fallbackStack.slice(start), nextId);
+          return true;
+        }
+        if (color === 0 && visitFallback(nextId)) return true;
+      }
+      fallbackStack.pop();
+      fallbackColor.set(id, 2);
+      return false;
+    };
+    for (const node of project.nodes) {
+      if ((fallbackColor.get(node.id) ?? 0) === 0 && visitFallback(node.id))
+        break;
+    }
+  }
+  if (fallbackCycle.length)
+    errors.push(
+      `降级链路存在循环：${fallbackCycle
+        .map((id) => byId.get(id)?.name ?? id)
+        .join(" → ")}`,
+    );
   if (
     project.nodes.some((node) => node.dependencyIds.length === 0) &&
     project.nodes.length > 1
   ) {
     warnings.push("多个入口节点会同时开始；并发上限可能让部分入口排队");
   }
-  return { order, cycle, validation: { errors, warnings } };
+  return {
+    order,
+    cycle,
+    fallbackCycle,
+    validation: { errors, warnings },
+  };
 }
 
 export function updateNode(

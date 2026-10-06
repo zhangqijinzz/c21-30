@@ -1,15 +1,29 @@
-import type {
-  LatencyProject,
-  RequestNode,
-  ScenarioSnapshot,
-  SimulationResult,
+import {
+  BUDGET_MODEL_VERSION,
+  type LatencyProject,
+  type RequestNode,
+  type ScenarioSnapshot,
+  type SimulationResult,
 } from "../../shared/domain/types";
 
 export interface ScenarioComparison {
   deltaMs: number;
   changes: string[];
   outcome: "faster" | "slower" | "equal";
+  /** 两侧快照分别使用的预算口径版本。 */
+  baselineModelVersion: number;
+  comparisonModelVersion: number;
+  /**
+   * 完成时间数字是否可直接对比。旧快照（v1）的完成时间按保存时口径冻结，
+   * 跨口径时 delta 仍取冻结值，但会附口径说明，避免“无故变化”或误读。
+   */
+  methodologyNotes: string[];
 }
+
+const MODEL_LABELS: Record<number, string> = {
+  1: "旧口径（降级单层加权，与主路径混排）",
+  2: "新口径（主/降级路径分列，降级链逐级折算）",
+};
 
 function describeNodeChanges(
   before: RequestNode,
@@ -66,6 +80,18 @@ export function compareScenarios(
     changes.unshift(
       `并发上限 · ${baseline.concurrencyLimit ?? "不限"} → ${comparison.concurrencyLimit ?? "不限"}`,
     );
+  const baselineModelVersion = baseline.modelVersion ?? 1;
+  const comparisonModelVersion = comparison.modelVersion ?? 1;
+  const methodologyNotes: string[] = [];
+  if (baselineModelVersion !== comparisonModelVersion) {
+    methodologyNotes.push(
+      `两份方案的预算口径不同：基准为「${MODEL_LABELS[baselineModelVersion] ?? `v${baselineModelVersion}`}」，对照为「${MODEL_LABELS[comparisonModelVersion] ?? `v${comparisonModelVersion}`}」。完成时间均按各自保存时的口径冻结展示，时间差混合了参数变化与口径变化；如需纯参数对比，请用相同口径重新保存基准方案。`,
+    );
+  } else if (baselineModelVersion < BUDGET_MODEL_VERSION) {
+    methodologyNotes.push(
+      `两份方案均按「${MODEL_LABELS[baselineModelVersion] ?? `v${baselineModelVersion}`}」保存，完成时间维持原值不变；新口径下重新保存才会按主/降级分列展示。`,
+    );
+  }
   return {
     deltaMs: comparison.completionMs - baseline.completionMs,
     changes,
@@ -75,6 +101,9 @@ export function compareScenarios(
         : comparison.completionMs > baseline.completionMs
           ? "slower"
           : "equal",
+    baselineModelVersion,
+    comparisonModelVersion,
+    methodologyNotes,
   };
 }
 
@@ -97,6 +126,8 @@ export function saveScenario(
     nodes: structuredClone(project.nodes),
     completionMs: result.completionMs,
     criticalPath: [...result.criticalPath],
+    modelVersion: result.modelVersion,
+    simulationMode: result.mode,
   };
   return {
     ...project,
